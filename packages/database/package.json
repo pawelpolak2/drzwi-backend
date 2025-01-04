@@ -1,8 +1,9 @@
 {
-  "name": "drzwi-backend",
+  "name": "database",
   "version": "1.0.0",
   "description": "",
   "main": "index.js",
+  "type": "module",
   "scripts": {
     "test": "echo \"Error: no test specified\" && exit 1"
   },
@@ -10,6 +11,9 @@
   "author": "",
   "license": "ISC",
   "devDependencies": {
-    "@biomejs/biome": "1.9.4"
+    "@types/node": "^22.10.5",
+    "prisma": "^6.1.0",
+    "tsx": "^4.19.2",
+    "typescript": "~5.6.3"
   }
 }
