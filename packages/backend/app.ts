@@ -1,17 +1,19 @@
 import Fastify from 'fastify'
 import cors from '@fastify/cors'
-import { authorize } from './utils/auth'
-import { closeDoor, getDoorState, openDoor } from './utils/doorState'
+import fastifyStatic from '@fastify/static'
+import path from 'path'
+import { authorize } from './utils/auth.js'
+import { closeDoor, getDoorState, openDoor } from './utils/doorState.js'
 
-const fastify = Fastify({
-  logger: true,
+const fastifyBackend = Fastify({
+  logger: false,
 })
-fastify.register(cors, {
+fastifyBackend.register(cors, {
   origin: '*',
 })
 
 // open the door
-fastify.get('/open', function (request, reply) {
+fastifyBackend.get('/open', function (request, reply) {
   const params = request.query as { password: string }
   const login = authorize(params.password)
   if (login.success) {
@@ -23,7 +25,7 @@ fastify.get('/open', function (request, reply) {
 })
 
 // close the door
-fastify.get('/close', function (request, reply) {
+fastifyBackend.get('/close', function (request, reply) {
   const params = request.query as { password: string }
   const login = authorize(params.password)
   if (login.success && login.admin) {
@@ -35,14 +37,35 @@ fastify.get('/close', function (request, reply) {
 });
 
 // get door status
-fastify.get('/status', function (request, reply) {
+fastifyBackend.get('/status', function (request, reply) {
   reply.send(getDoorState())
 })
 
 // Run the server!
-fastify.listen({ port: 3000, host: '0.0.0.0' }, function (err, address) {
+fastifyBackend.listen({ port: 3000, host: '0.0.0.0' }, function (err, address) {
   if (err) {
-    fastify.log.error(err)
+    fastifyBackend.log.error(err)
+    process.exit(1)
+  }
+  // Server is now listening!
+})
+
+// Serve the frontend
+const fastifyFrontend = Fastify({
+  logger: true,
+})
+fastifyFrontend.register(fastifyStatic, {
+  root: path.resolve('../../apps/frontend/dist')
+})
+
+
+fastifyFrontend.get('/', function (request, reply) {
+  return reply.sendFile('index.html')
+})
+
+fastifyFrontend.listen({ port: 80, host: '0.0.0.0' }, function (err, address) {
+  if (err) {
+    fastifyFrontend.log.error(err)
     process.exit(1)
   }
   // Server is now listening!
