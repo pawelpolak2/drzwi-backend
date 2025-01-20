@@ -1,15 +1,35 @@
-import React, { useState } from 'react';
-
-interface KeypadProps {
-  onSubmit: (code: string) => void;
-}
+import { useState } from 'react';
 
 const renderCode = (code: string) => {
   return code.padEnd(4, '_').split('').join(' ');
 };
 
-const Keypad: React.FC<KeypadProps> = ({ onSubmit }) => {
+const handleSubmit= (code: string, setResponse: (response: string | undefined) => void) => {
+  const endpoint = `http://${window.location.hostname}:3000/open?password=${code}`
+  fetch(endpoint).then((response) => {
+    response.json().then((data) => {
+      if (data.success) {
+        setResponse('🚪🚶‍')
+      } else {
+        setResponse('❌')
+      }
+      setTimeout(() => {
+        setResponse(undefined)
+      }, 2000)
+    })
+  }).catch(() => {
+    setResponse('❌')
+    setTimeout(() => {
+      setResponse(undefined)
+    }, 2000)
+  })
+}
+
+const DEFAULT_TITLE = 'kto tam? 😈🚪'
+
+const Keypad = () => {
   const [code, setCode] = useState<string | undefined>(undefined);
+  const [response, setResponse] = useState<string | undefined>(undefined);
 
   const handleButtonClick = (value: string) => {
     setCode((prevCode) => {
@@ -25,7 +45,7 @@ const Keypad: React.FC<KeypadProps> = ({ onSubmit }) => {
 
   return (
     <div className="h-screen w-screen flex flex-col items-center justify-center bg-gray-800">
-      <h1 className="text-white text-4xl font-bold mb-8">kto tam? 😈🚪</h1>
+      <h1 className="text-white text-4xl font-bold mb-8">{response ? response : DEFAULT_TITLE}</h1>
       <div className="bg-gray-900 rounded-lg p-8 shadow-lg w-11/12 md:w-1/2 lg:w-1/3">
         <div className="text-white text-6xl font-bold mb-8 text-center">
           {code ? renderCode(code) : '_ _ _ _'}
@@ -50,7 +70,7 @@ const Keypad: React.FC<KeypadProps> = ({ onSubmit }) => {
             className="bg-green-500 hover:bg-green-600 text-white text-4xl font-bold py-4 rounded-lg col-span-1"
             onClick={() => {
               if (code) {
-                onSubmit(code);
+                handleSubmit(code, setResponse);
                 setCode('');
               }
             }}
