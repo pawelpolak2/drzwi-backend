@@ -5,11 +5,10 @@
 const char* ssid = "dmow";
 const char* password = "jA3kvD26p$14";
 
-String doorStatusEndpoint = "http://drzwi.live:3000/status";
-String doorCloseEndpoint = "http://drzwi.live:3000/close";
+String doorStatusEndpoint = "http://drzwi.live:3000/status?password=__arduino";
+String doorCloseEndpoint = "http://drzwi.live:3000/report-opened?password=__arduino";
 
 unsigned long lastTime = 0;
-// Set timer to 5 seconds (5000)
 unsigned long timerDelay = 1000;
 
 const int PILOT = 0;
@@ -17,73 +16,59 @@ const int PILOT = 0;
 void setup() {
   pinMode(PILOT, OUTPUT);
   digitalWrite(PILOT, LOW);
-  Serial.begin(115200); 
+  Serial.begin(115200);
 
   WiFi.begin(ssid, password);
   Serial.println("Connecting");
-  while(WiFi.status() != WL_CONNECTED) {
+  while (WiFi.status() != WL_CONNECTED) {
     delay(500);
     Serial.print(".");
   }
   Serial.println("\n");
   Serial.print("Connected to WiFi network with IP Address: ");
   Serial.println(WiFi.localIP());
- 
-  Serial.println("Timer set to 5 seconds (timerDelay variable), it will take 5 seconds before publishing the first reading.");
+
+  Serial.println("Timer set to 1 second (timerDelay variable), it will take 1 second before publishing the first reading.");
+}
+
+// Function to send an HTTP GET request and return the response code and payload
+int sendHttpRequest(String url, String& responsePayload) {
+  WiFiClient client;
+  HTTPClient http;
+
+  http.begin(client, url.c_str());
+  int httpResponseCode = http.GET();
+
+  if (httpResponseCode > 0) {
+    Serial.print("HTTP Response code: ");
+    Serial.println(httpResponseCode);
+    responsePayload = http.getString();
+    Serial.println(responsePayload);
+  } else {
+    Serial.print("Error code: ");
+    Serial.println(httpResponseCode);
+    responsePayload = "";
+  }
+  http.end();
+  return httpResponseCode;
 }
 
 void loop() {
   if ((millis() - lastTime) > timerDelay) {
-    //Check WiFi connection status
-    if(WiFi.status()== WL_CONNECTED){
-      WiFiClient client;
-      HTTPClient http;
+    if (WiFi.status() == WL_CONNECTED) {
+      String response;
+      int doorStatusResponseCode = sendHttpRequest(doorStatusEndpoint, response);
 
-      String serverPath = doorStatusEndpoint + "?userName=admin&password=admin";
-      bool openTheDoor = false;
-      
-      http.begin(client, serverPath.c_str());
-      int httpResponseCode = http.GET();
-      
-      if (httpResponseCode>0) {
-        Serial.print("HTTP Response code: ");
-        Serial.println(httpResponseCode);
-        String payload = http.getString();
-        Serial.println(payload);
-        if(payload == "OPEN") openTheDoor = true;
-      }
-      else {
-        Serial.print("Error code: ");
-        Serial.println(httpResponseCode);
-      }
-      // Free resources
-      http.end();
+      if (doorStatusResponseCode > 0) {
+        if (response == "OPEN") {
+          digitalWrite(PILOT, HIGH);
+          delay(100);
+          digitalWrite(PILOT, LOW);
 
-      if(openTheDoor) {
-        digitalWrite(PILOT, HIGH);
-        delay(100);
-        digitalWrite(PILOT, LOW);
-
-        serverPath = doorCloseEndpoint + "?userName=admin&password=admin";
-
-        http.begin(client, serverPath.c_str());
-        httpResponseCode = http.GET();
-        
-        if (httpResponseCode>0) {
-          Serial.print("HTTP Response code: ");
-          Serial.println(httpResponseCode);
-          String payload = http.getString();
-          Serial.println(payload);
+          int doorCloseResponseCode = sendHttpRequest(doorCloseEndpoint, response);
         }
-        else {
-          Serial.print("Error code: ");
-          Serial.println(httpResponseCode);
-        }
-        // Free resources
-        http.end();
       }
-    }
-    else {
+    } else {
       Serial.println("WiFi Disconnected");
     }
     lastTime = millis();

@@ -2,71 +2,28 @@ import Fastify from 'fastify'
 import cors from '@fastify/cors'
 import fastifyStatic from '@fastify/static'
 import path from 'path'
-import { authorize } from './utils/auth.js'
-import { closeDoor, getDoorState, openDoor } from './utils/doorState.js'
+import { PrismaClient } from 'database'
+import {
+  fastifyTRPCPlugin,
+  FastifyTRPCPluginOptions,
+} from '@trpc/server/adapters/fastify';
+import { appRouter } from './src/router'
+import { authorize } from './src/utils/auth'
+import { registerArduinoApi } from './src/endpoints/arduino'
 
-const fastifyBackend = Fastify({
+const fastify = Fastify({
   logger: false,
 })
-fastifyBackend.register(cors, {
+fastify.register(cors, {
   origin: '*',
 })
 
-// open the door
-fastifyBackend.get('/open', function (request, reply) {
-  const params = request.query as { password: string }
-  const login = authorize(params.password)
-  if (login.success) {
-    openDoor()
-    reply.send({ success: true })
-  } else {
-    reply.send({ success: false })
-  }
+fastify.register(fastifyTRPCPlugin, {
+  prefix: '/',
+  trpcOptions: { router: appRouter },
 })
 
-// close the door
-fastifyBackend.get('/close', function (request, reply) {
-  const params = request.query as { password: string }
-  const login = authorize(params.password)
-  if (login.success && login.admin) {
-    closeDoor()
-    reply.send({ success: true })
-  } else {
-    reply.send({ success: false })
-  }
-});
+// Expose a simpler API for the arduino, so it doesn't have to parse JSON
+registerArduinoApi(fastify)
 
-// get door status
-fastifyBackend.get('/status', function (request, reply) {
-  reply.send(getDoorState())
-})
-
-// Run the server!
-fastifyBackend.listen({ port: 3000, host: '0.0.0.0' }, function (err, address) {
-  if (err) {
-    fastifyBackend.log.error(err)
-    process.exit(1)
-  }
-  // Server is now listening!
-})
-
-// Serve the frontend
-const fastifyFrontend = Fastify({
-  logger: true,
-})
-fastifyFrontend.register(fastifyStatic, {
-  root: path.resolve('../../apps/frontend/dist')
-})
-
-
-fastifyFrontend.get('/', function (request, reply) {
-  return reply.sendFile('index.html')
-})
-
-fastifyFrontend.listen({ port: 80, host: '0.0.0.0' }, function (err, address) {
-  if (err) {
-    fastifyFrontend.log.error(err)
-    process.exit(1)
-  }
-  // Server is now listening!
-})
+fastify.listen({ port: 3000, host: '0.0.0.0' });
