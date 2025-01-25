@@ -60,7 +60,7 @@ void loop() {
       int doorStatusResponseCode = sendHttpRequest(doorStatusEndpoint, response);
 
       if (doorStatusResponseCode > 0) {
-        if (response == "OPEN") {
+        if (response == "PENDING_OPEN") {
           digitalWrite(PILOT, HIGH);
           delay(100);
           digitalWrite(PILOT, LOW);
